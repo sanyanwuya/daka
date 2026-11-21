@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>每日打卡</title>
+  <style>
+    :root { --main: #2ea36b; }
+    * { box-sizing: border-box; }
+    body {
+      font-family: -apple-system, "PingFang SC", sans-serif;
+      max-width: 520px;
+      margin: 50px auto;
+      padding: 0 20px;
+      color: #1b1b1b;
+      line-height: 1.6;
+    }
+    h1 { font-size: 22px; margin: 0; }
+    .sub { color: #888; font-size: 14px; margin: 6px 0 0; }
+    .sub b { color: var(--main); font-size: 15px; }
+    .big {
+      font-size: 56px;
+      font-weight: 800;
+      color: var(--main);
+      margin: 18px 0 10px;
+      line-height: 1;
+    }
+    .big small { font-size: 20px; font-weight: 500; color: #999; margin-left: 6px; }
+    button {
+      font-size: 17px;
+      padding: 12px 26px;
+      border: none;
+      border-radius: 10px;
+      background: var(--main);
+      color: #fff;
+      cursor: pointer;
+    }
+    button:hover { opacity: .86; }
+    button.ghost {
+      background: #fff;
+      color: #888;
+      border: 1px solid #ddd;
+      font-size: 15px;
+      padding: 10px 18px;
+      margin-left: 8px;
+    }
+    h2 { font-size: 16px; margin-top: 40px; color: #555; }
+    ul { padding-left: 0; list-style: none; }
+    li {
+      padding: 10px 14px;
+      border: 1px solid #eee;
+      border-radius: 8px;
+      margin-bottom: 8px;
+      display: flex;
+      justify-content: space-between;
+    }
+    li .n { font-weight: 700; color: var(--main); }
+    li.empty { color: #bbb; border-style: dashed; justify-content: center; }
+    footer { color: #bbb; font-size: 12px; margin-top: 40px; }
+  </style>
+</head>
+<body>
+
+  <h1>今天打卡了</h1>
+  <p class="sub"><span id="today-date"></span> · 已连续 <b id="streak">—</b></p>
+
+  <div class="big"><span id="today-count">0</span><small>次</small></div>
+
+  <button onclick="checkIn()">打卡 +1</button>
+  <button class="ghost" onclick="undoToday()">撤销今天</button>
+
+  <h2>最近记录</h2>
+  <ul id="history"></ul>
+
+  <footer>数据存在你自己浏览器的本地存储里，不会上传任何地方。</footer>
+
+  <script>
+    // ============================================================
+    //  每日打卡
+    //  记录本长这样：{ "2026-11-20": 2, "2026-11-21": 1 }
+    //  也就是「日期 → 那天打卡了几次」
+    // ============================================================
+
+    // ---------- 一、读数据 ----------
+    const today = new Date().toLocaleDateString('sv-SE');          // "2026-11-21"
+    const all = JSON.parse(localStorage.getItem('daka') ?? '{}');  // 从抽屉拿出记录本
+
+    // 今天的日期文字，比如 "11月21日 · 星期五"
+    const now = new Date();
+    const dateLabel = `${now.getMonth() + 1}月${now.getDate()}日 · 星期${'日一二三四五六'[now.getDay()]}`;
+
+
+    // ---------- 二、算连续打卡天数 ----------
+    function calcStreak() {
+      const d = new Date();
+
+      // 今天还没打卡时，从昨天开始数（这样白天还没打卡也不至于显示 0）
+      if (all[d.toLocaleDateString('sv-SE')] == null) {
+        d.setDate(d.getDate() - 1);
+      }
+
+      let n = 0;
+      // 一天一天往前推，直到某天没有记录为止
+      while (all[d.toLocaleDateString('sv-SE')] != null) {
+        n = n + 1;
+        d.setDate(d.getDate() - 1);
+      }
+      return n;
+    }
+
+
+    // ---------- 三、把数据画到界面上（唯一的刷新入口）----------
+    function render() {
+      document.getElementById('today-date').textContent = dateLabel;
+      document.getElementById('today-count').textContent = all[today] ?? 0;
+
+      const s = calcStreak();
+      document.getElementById('streak').textContent = s > 0 ? `${s} 天` : '—';
+
+      // 最近 7 天，新的在上面
+      const days = Object.keys(all).sort().reverse().slice(0, 7);
+      const ul = document.getElementById('history');
+      if (days.length === 0) {
+        ul.innerHTML = '<li class="empty">还没有记录，点上面的「打卡 +1」开始</li>';
+      } else {
+        ul.innerHTML = days
+          .map(d => `<li><span>${d}</span><span class="n">${all[d]} 次</span></li>`)
+          .join('');
+      }
+    }
+
+
+    // ---------- 四、数据变了，就改数据 + 重画 ----------
+    function checkIn() {
+      all[today] = (all[today] ?? 0) + 1;
+      localStorage.setItem('daka', JSON.stringify(all));
+      render();
+    }
+
+    function undoToday() {
+      delete all[today];
+      localStorage.setItem('daka', JSON.stringify(all));
+      render();
+    }
+
+
+    // 页面一打开，先画一遍
+    render();
+  </script>
+
+</body>
+</html>
